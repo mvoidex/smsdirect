@@ -1,0 +1,20 @@
+Name:                smsdirect
+Version:             0.1.0.0
+Synopsis:            Library for SMSDirect
+-- description:         
+Homepage:            http://github.com/mvoidex/smsdirect
+License:             BSD3
+License-file:        LICENSE
+Author:              Alexandr `Voidex` Ruchkin
+Maintainer:          voidex@live.com
+Build-type:          Simple
+Cabal-version:       >=1.8
+
+Library
+  HS-Source-Dirs: src
+  Exposed-modules:
+  Other-modules:
+  Build-depends:
+    base >= 4.5 && < 5.0
+
+  Ghc-Options: -Wall
