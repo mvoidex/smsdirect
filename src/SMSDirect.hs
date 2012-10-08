@@ -4,7 +4,10 @@
 --
 -- @
 -- -- Get DB list
--- r <- smsdirect "test" "test" getDB
+-- r <- smsdirect \"test\" \"test\" getDB
+--
+-- -- Make url for tracing purposes
+-- let cmd = url \"test\" \"test\" getDB
 -- @
 --
 module SMSDirect (
