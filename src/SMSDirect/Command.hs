@@ -42,7 +42,6 @@ module SMSDirect.Command (
 
   ) where
 
-import qualified Control.Exception as E
 import Control.Monad
 import Data.Monoid
 import Data.ByteString.Lazy (ByteString, toChunks)
