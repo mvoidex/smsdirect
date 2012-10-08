@@ -275,7 +275,7 @@ dateTime = T.pack . formatTime defaultTimeLocale "%H:%M %d.%m.%Y"
 -- and maximum length of 11
 sender :: Text -> Text
 sender p
-  | T.all isValid p && T.length p == 11 = p
+  | T.all isValid p && T.length p <= 11 = p
   | otherwise = error $ "Sender must contain only digits, latin letters or one of '_', '-', '&', '.': " ++ T.unpack p
   where
     isValid c = isDigit c || (isAscii c && isLetter c) || (c `elem` "_-&.")
