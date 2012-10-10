@@ -135,7 +135,7 @@ submitDB i r name ps = command "submit_db" args resultInt where
 
 -- | Remove records from DB
 editDB :: DatabaseId -> [Phone] -> Command (Maybe DatabaseId)
-editDB i ps = command "edit_db" args resultInt where\
+editDB i ps = command "edit_db" args resultInt where
   args = mconcat [
     "id" %= i,
     "msisdn" %= utf8 (phones ps)]
