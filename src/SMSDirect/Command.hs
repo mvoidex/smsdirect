@@ -2,6 +2,7 @@
 module SMSDirect.Command (
   -- * Types
   Command,
+  Sender,
   Phone,
   Role(..),
   ErrorCode,
@@ -52,11 +53,15 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Data.String
 import Data.Time
-import Data.URLEncoded
+import Data.URLEncoded hiding (filter)
 import Network.HTTP.Conduit
 import System.Locale
 
 data Command a = Command String URLEncoded (ByteString -> IO a)
+
+newtype Sender = Sender {
+  senderName :: Text }
+    deriving (Eq, Ord, Read, Show)
 
 type Phone = Integer
 
@@ -104,16 +109,16 @@ instance URLShow Info where
   urlShow = urlShow . fromEnum
 
 -- | Submit one message
-submitMessage :: Text -> Phone -> Text -> Maybe Text -> Command MessageId
+submitMessage :: Sender -> Phone -> Text -> Maybe Text -> Command (Maybe MessageId)
 submitMessage from to text start = command "submit_message" args resultInt where
   args = mconcat [
-    "from" %= utf8 (sender from),
+    "from" %= utf8 (senderName from),
     "to" %= to,
     "text" %= utf8 text,
     "startdate" %=? fmap utf8 start]
 
 -- | Create/update DB
-submitDB :: Maybe DatabaseId -> Maybe Role -> Maybe Text -> [Person] -> Command DatabaseId
+submitDB :: Maybe DatabaseId -> Maybe Role -> Maybe Text -> [Person] -> Command (Maybe DatabaseId)
 submitDB i r name ps = command "submit_db" args resultInt where
   args = mconcat [
     "id" %=? i,
@@ -129,14 +134,14 @@ submitDB i r name ps = command "submit_db" args resultInt where
     sx]
 
 -- | Remove records from DB
-editDB :: DatabaseId -> [Phone] -> Command DatabaseId
-editDB i ps = command "edit_db" args resultInt where
+editDB :: DatabaseId -> [Phone] -> Command (Maybe DatabaseId)
+editDB i ps = command "edit_db" args resultInt where\
   args = mconcat [
     "id" %= i,
     "msisdn" %= utf8 (phones ps)]
 
 -- | Get DB status
-statusDB :: DatabaseId -> Command Int
+statusDB :: DatabaseId -> Command (Maybe Int)
 statusDB i = command "status_db" ("id" %= i) resultInt
 
 -- | Get DB list
@@ -144,13 +149,13 @@ getDB :: Command ByteString
 getDB = command "get_db" mempty return
 
 -- | Delete DB
-deleteDB :: DatabaseId -> Command ()
+deleteDB :: DatabaseId -> Command Bool
 deleteDB i = command "delete_db" ("id" %= i) checkResult where
   checkResult r = do
     v <- resultInt r
     case v of
-      0 -> return ()
-      _ -> error $ "Unknown response code: " ++ show i
+      Just 0 -> return True
+      _ -> return False
 
 submitDispatch ::
   TypeList ->
@@ -173,7 +178,7 @@ submitDispatch ::
   -- If by abonent date is 'True', then date is ignored
   UTCTime ->
   -- ^ End date and time
-  Maybe Text ->
+  Maybe Sender ->
   -- ^ Sender
   Bool ->
   -- ^ Message is pattern
@@ -181,7 +186,7 @@ submitDispatch ::
   -- ^ By abonent date (?)
   Bool ->
   -- ^ Use local time of receivers
-  Command DispatchId
+  Command (Maybe DispatchId)
 
 submitDispatch tl i ps mess wap perDay perHour hours days start end from isPattern byAbonentDate localTime =
   command "submit_dispatch" args resultInt where
@@ -197,19 +202,15 @@ submitDispatch tl i ps mess wap perDay perHour hours days start end from isPatte
       days',
       "startdate" %= utf8 (dateTime start),
       "enddate" %= utf8 (dateTime end),
-      "number" %=? fmap (utf8 . sender) from,
+      "number" %=? fmap (utf8 . senderName) from,
       "pattern" %= fromEnum isPattern,
       "byabonentdate" %= fromEnum byAbonentDate,
       "localtime" %= fromEnum localTime]
-    hours'
-      | all (`elem` [0 .. 23]) hours = mconcat [(T.unpack . T.append (fromString "shour") . T.justifyRight 2 '0' . T.pack . show $ h) %= (1 :: Int) | h <- hours]
-      | otherwise = error "Hours must be in range [0 .. 23]"
-    days'
-      | all (`elem` [0 .. 6]) days = mconcat [("sday" ++ show d) %= (1 :: Int) | d <- days]
-      | otherwise = error "Days must be in range [0 .. 6]"
+    hours' = mconcat [(T.unpack . T.append (fromString "shour") . T.justifyRight 2 '0' . T.pack . show $ h) %= (1 :: Int) | h <- filter (`elem` [0..23]) hours]
+    days' = mconcat [("sday" ++ show d) %= (1 :: Int) | d <- filter (`elem` [0..6]) days]
 
 -- | Get dispatch status
-statusDispatch :: DispatchId -> Command Int
+statusDispatch :: DispatchId -> Command (Maybe Int)
 statusDispatch i = command "status_dispatch" ("id" %= i) resultInt
 
 -- | Get user info
@@ -221,7 +222,7 @@ statsDispatch :: DispatchId -> Command ByteString
 statsDispatch i = command "stats_dispatch" ("id" %= i) return
 
 -- | Message status
-statusMessage :: MessageId -> Command Int
+statusMessage :: MessageId -> Command (Maybe Int)
 statusMessage i = command "status_message" ("mid" %= i) resultInt
 
 -- | Run command with account
@@ -257,10 +258,10 @@ utf8 :: Text -> String
 utf8 = C8.unpack . T.encodeUtf8
 
 -- | Encode phone, allows only digits
-phone :: Text -> Phone
+phone :: Text -> Either String Phone
 phone p
-  | T.all isDigit p = read . T.unpack $ p
-  | otherwise = error $ "Phone must contain only digits: " ++ T.unpack p
+  | T.all isDigit p = Right $ read . T.unpack $ p
+  | otherwise = Left $ "Phone must contain only digits: " ++ T.unpack p
 
 -- | Separate phones with comma
 phones :: [Phone] -> Text
@@ -272,10 +273,10 @@ dateTime = T.pack . formatTime defaultTimeLocale "%H:%M %d.%m.%Y"
 
 -- | Encode sender, allows digits, latin letters, '_', '-', '&' and '.'
 -- and maximum length of 11
-sender :: Text -> Text
+sender :: Text -> Either String Sender
 sender p
-  | T.all isValid p && T.length p <= 11 = p
-  | otherwise = error $ "Sender must contain only digits, latin letters or one of '_', '-', '&', '.': " ++ T.unpack p
+  | T.all isValid p && T.length p <= 11 = Right $ Sender p
+  | otherwise = Left $ "Sender must contain only digits, latin letters or one of '_', '-', '&', '.': " ++ T.unpack p
   where
     isValid c = isDigit c || (isAscii c && isLetter c) || (c `elem` "_-&.")
 
@@ -286,6 +287,6 @@ commandUrl :: String -> String -> URLEncoded -> String
 commandUrl baseUrl cmd args = (baseUrl ++ "/" ++ cmd) %? args
 
 -- | Parse result as Int
-resultInt :: ByteString -> IO Int
-resultInt bs = maybe (error $ "Unable to parse as int: " ++ C8.unpack bs') (return . fst) . C8.readInt $ bs' where
+resultInt :: ByteString -> IO (Maybe Int)
+resultInt bs = return . fmap fst . C8.readInt $ bs' where
   bs' = C8.concat . toChunks $ bs
