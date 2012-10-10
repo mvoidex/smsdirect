@@ -222,7 +222,7 @@ statsDispatch i = command "stats_dispatch" ("id" %= i) return
 
 -- | Message status
 statusMessage :: MessageId -> Command Int
-statusMessage i = command "status_message" ("id" %= i) resultInt
+statusMessage i = command "status_message" ("mid" %= i) resultInt
 
 -- | Run command with account
 smsdirect :: Text -> Text -> Command a -> IO (Either ErrorCode a)
