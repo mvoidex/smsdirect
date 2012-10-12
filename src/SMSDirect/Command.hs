@@ -1,47 +1,47 @@
 -- | Module contains functions to form URL
 module SMSDirect.Command (
-  -- * Types
-  Command,
-  Sender,
-  Phone,
-  Role(..),
-  ErrorCode,
-  MessageId, DatabaseId, DispatchId,
-  TypeList(..),
-  Account(..),
-  Person(..),
-  Info(..),
+    -- * Types
+    Command,
+    Sender,
+    Phone,
+    Role(..),
+    ErrorCode,
+    MessageId, DatabaseId, DispatchId,
+    TypeList(..),
+    Account(..),
+    Person(..),
+    Info(..),
 
-  -- * Commands
-  submitMessage,
-  submitDB,
-  editDB,
-  statusDB,
-  getDB,
-  deleteDB,
-  submitDispatch,
-  statusDispatch,
-  getUserInfo,
-  statsDispatch,
-  statusMessage,
+    -- * Commands
+    submitMessage,
+    submitDB,
+    editDB,
+    statusDB,
+    getDB,
+    deleteDB,
+    submitDispatch,
+    statusDispatch,
+    getUserInfo,
+    statsDispatch,
+    statusMessage,
 
-  -- * General command functions
-  smsdirect,
-  url,
-  command,
+    -- * General command functions
+    smsdirect,
+    url,
+    command,
 
-  -- * Helper functions
-  account,
-  utf8,
-  phone,
-  phones,
-  dateTime,
-  sender,
-  smsdirectUrl,
-  commandUrl,
-  resultInt
+    -- * Helper functions
+    account,
+    utf8,
+    phone,
+    phones,
+    dateTime,
+    sender,
+    smsdirectUrl,
+    commandUrl,
+    resultInt
 
-  ) where
+    ) where
 
 import Control.Monad
 import Data.Monoid
@@ -60,8 +60,8 @@ import System.Locale
 data Command a = Command String URLEncoded (ByteString -> IO a)
 
 newtype Sender = Sender {
-  senderName :: Text }
-    deriving (Eq, Ord, Read, Show)
+    senderName :: Text }
+        deriving (Eq, Ord, Read, Show)
 
 type Phone = Integer
 
@@ -74,71 +74,71 @@ type DatabaseId = Int
 type DispatchId = Int
 
 instance URLShow Role where
-  urlShow = urlShow . succ . fromEnum
+    urlShow = urlShow . succ . fromEnum
 
 data TypeList = ByDatabase | ByPhoneList deriving (Eq, Ord, Read, Show, Enum, Bounded)
 
 instance URLShow TypeList where
-  urlShow = urlShow . succ . fromEnum
+    urlShow = urlShow . succ . fromEnum
 
 data Account = Account {
-  accountLogin :: Text,
-  accountPass :: Text }
-    deriving (Eq, Ord, Read, Show)
+    accountLogin :: Text,
+    accountPass :: Text }
+        deriving (Eq, Ord, Read, Show)
 
 -- | Person type stored in DB
 data Person = Person {
-  personPhone :: Phone,
-  personName :: Text,
-  personSecondName :: Text,
-  personLastName :: Text,
-  personCity :: Text,
-  personDate :: UTCTime,
-  personSex :: Text }
-    deriving (Eq, Ord, Read, Show)
+    personPhone :: Phone,
+    personName :: Text,
+    personSecondName :: Text,
+    personLastName :: Text,
+    personCity :: Text,
+    personDate :: UTCTime,
+    personSex :: Text }
+        deriving (Eq, Ord, Read, Show)
 
 -- | User info
 data Info =
-  InfoBalance |
-  InfoManager |
-  InfoCanChangeNumber |
-  InfoHTTPGateDispatch
-    deriving (Eq, Ord, Read, Show, Enum, Bounded)
+    InfoBalance |
+    InfoManager |
+    InfoCanChangeNumber |
+    InfoHTTPGateDispatch
+        deriving (Eq, Ord, Read, Show, Enum, Bounded)
 
 instance URLShow Info where
-  urlShow = urlShow . fromEnum
+    urlShow = urlShow . fromEnum
 
 -- | Submit one message
 submitMessage :: Sender -> Phone -> Text -> Maybe Text -> Command (Maybe MessageId)
 submitMessage from to text start = command "submit_message" args resultInt where
-  args = mconcat [
-    "from" %= utf8 (senderName from),
-    "to" %= to,
-    "text" %= utf8 text,
-    "startdate" %=? fmap utf8 start]
+    args = mconcat [
+        "from" %= utf8 (senderName from),
+        "to" %= to,
+        "text" %= utf8 text,
+        "startdate" %=? fmap utf8 start]
 
 -- | Create/update DB
 submitDB :: Maybe DatabaseId -> Maybe Role -> Maybe Text -> [Person] -> Command (Maybe DatabaseId)
 submitDB i r name ps = command "submit_db" args resultInt where
-  args = mconcat [
-    "id" %=? i,
-    "role" %=? r,
-    "lname" %=? fmap utf8 name,
-    "qfile" %= utf8 ps']
-  ps' = T.unlines $ map showPerson ps
-  showPerson :: Person -> Text
-  showPerson (Person ph n sn ln city tm sx) = T.intercalate (fromString ";") [
-    T.pack . show $ ph,
-    n, sn, ln, city,
-    T.pack . formatTime defaultTimeLocale "%d-%m-%Y" $ tm,
-    sx]
+    args = mconcat [
+        "id" %=? i,
+        "role" %=? r,
+        "lname" %=? fmap utf8 name,
+        "qfile" %= utf8 ps']
+    ps' = T.unlines $ map showPerson ps
+    showPerson :: Person -> Text
+    showPerson (Person ph n sn ln city tm sx) = T.intercalate (fromString ";") [
+        T.pack . show $ ph,
+        n, sn, ln, city,
+        T.pack . formatTime defaultTimeLocale "%d-%m-%Y" $ tm,
+        sx]
 
 -- | Remove records from DB
 editDB :: DatabaseId -> [Phone] -> Command (Maybe DatabaseId)
 editDB i ps = command "edit_db" args resultInt where
-  args = mconcat [
-    "id" %= i,
-    "msisdn" %= utf8 (phones ps)]
+    args = mconcat [
+        "id" %= i,
+        "msisdn" %= utf8 (phones ps)]
 
 -- | Get DB status
 statusDB :: DatabaseId -> Command (Maybe Int)
@@ -151,63 +151,63 @@ getDB = command "get_db" mempty return
 -- | Delete DB
 deleteDB :: DatabaseId -> Command Bool
 deleteDB i = command "delete_db" ("id" %= i) checkResult where
-  checkResult r = do
-    v <- resultInt r
-    case v of
-      Just 0 -> return True
-      _ -> return False
+    checkResult r = do
+        v <- resultInt r
+        case v of
+            Just 0 -> return True
+            _ -> return False
 
 submitDispatch ::
-  TypeList ->
-  DatabaseId ->
-  [Phone] ->
-  Text ->
-  -- ^ Message with patterns
-  Bool ->
-  -- ^ Is wap-push?
-  Maybe Int ->
-  -- ^ Maximum messages per day
-  Maybe Int ->
-  -- ^ Maximum messages per hour
-  [Int] ->
-  -- ^ Hours to send in, for example [14..17] is to send messages from 14 to 17 (including ends)
-  [Int] ->
-  -- ^ Weekdays to send in, 0 is for sunday.
-  UTCTime ->
-  -- ^ Start date and time of dispatch
-  -- If by abonent date is 'True', then date is ignored
-  UTCTime ->
-  -- ^ End date and time
-  Maybe Sender ->
-  -- ^ Sender
-  Bool ->
-  -- ^ Message is pattern
-  Bool ->
-  -- ^ By abonent date (?)
-  Bool ->
-  -- ^ Use local time of receivers
-  Command (Maybe DispatchId)
+    TypeList ->
+    DatabaseId ->
+    [Phone] ->
+    Text ->
+    -- ^ Message with patterns
+    Bool ->
+    -- ^ Is wap-push?
+    Maybe Int ->
+    -- ^ Maximum messages per day
+    Maybe Int ->
+    -- ^ Maximum messages per hour
+    [Int] ->
+    -- ^ Hours to send in, for example [14..17] is to send messages from 14 to 17 (including ends)
+    [Int] ->
+    -- ^ Weekdays to send in, 0 is for sunday.
+    UTCTime ->
+    -- ^ Start date and time of dispatch
+    -- If by abonent date is 'True', then date is ignored
+    UTCTime ->
+    -- ^ End date and time
+    Maybe Sender ->
+    -- ^ Sender
+    Bool ->
+    -- ^ Message is pattern
+    Bool ->
+    -- ^ By abonent date (?)
+    Bool ->
+    -- ^ Use local time of receivers
+    Command (Maybe DispatchId)
 
 submitDispatch tl i ps mess wap perDay perHour hours days start end from isPattern byAbonentDate localTime =
-  command "submit_dispatch" args resultInt where
-    args = mconcat [
-      "typelist" %= tl,
-      "list" %= i,
-      "msisdn" %= utf8 (phones ps),
-      "mess" %= utf8 mess,
-      "isurl" %= fromEnum wap,
-      "max_mess" %= maybe "" show perDay,
-      "max_pess_per_hour" %= maybe "" show perHour,
-      hours',
-      days',
-      "startdate" %= utf8 (dateTime start),
-      "enddate" %= utf8 (dateTime end),
-      "number" %=? fmap (utf8 . senderName) from,
-      "pattern" %= fromEnum isPattern,
-      "byabonentdate" %= fromEnum byAbonentDate,
-      "localtime" %= fromEnum localTime]
-    hours' = mconcat [(T.unpack . T.append (fromString "shour") . T.justifyRight 2 '0' . T.pack . show $ h) %= (1 :: Int) | h <- filter (`elem` [0..23]) hours]
-    days' = mconcat [("sday" ++ show d) %= (1 :: Int) | d <- filter (`elem` [0..6]) days]
+    command "submit_dispatch" args resultInt where
+        args = mconcat [
+            "typelist" %= tl,
+            "list" %= i,
+            "msisdn" %= utf8 (phones ps),
+            "mess" %= utf8 mess,
+            "isurl" %= fromEnum wap,
+            "max_mess" %= maybe "" show perDay,
+            "max_pess_per_hour" %= maybe "" show perHour,
+            hours',
+            days',
+            "startdate" %= utf8 (dateTime start),
+            "enddate" %= utf8 (dateTime end),
+            "number" %=? fmap (utf8 . senderName) from,
+            "pattern" %= fromEnum isPattern,
+            "byabonentdate" %= fromEnum byAbonentDate,
+            "localtime" %= fromEnum localTime]
+        hours' = mconcat [(T.unpack . T.append (fromString "shour") . T.justifyRight 2 '0' . T.pack . show $ h) %= (1 :: Int) | h <- filter (`elem` [0..23]) hours]
+        days' = mconcat [("sday" ++ show d) %= (1 :: Int) | d <- filter (`elem` [0..6]) days]
 
 -- | Get dispatch status
 statusDispatch :: DispatchId -> Command (Maybe Int)
@@ -228,16 +228,16 @@ statusMessage i = command "status_message" ("mid" %= i) resultInt
 -- | Run command with account
 smsdirect :: Text -> Text -> Command a -> IO (Either ErrorCode a)
 smsdirect login pass cmd@(Command _ _ onResult) = do
-  req <- parseUrl (url login pass cmd)
-  let
-    req' = req {
-      method = fromString "GET",
-      secure = True,
-      checkStatus = \_ _ -> Nothing }
-  (Response s _ h resp) <- withManager $ httpLbs req'
-  case checkStatus req s h of
-    Nothing -> liftM Right $ onResult resp
-    Just _ -> maybe (return $ Left 0) (return . Left) $ fmap fst $ C8.readInt $ C8.concat $ toChunks resp
+    req <- parseUrl (url login pass cmd)
+    let
+        req' = req {
+            method = fromString "GET",
+            secure = True,
+            checkStatus = \_ _ -> Nothing }
+    (Response s _ h resp) <- withManager $ httpLbs req'
+    case checkStatus req s h of
+        Nothing -> liftM Right $ onResult resp
+        Just _ -> maybe (return $ Left 0) (return . Left) $ fmap fst $ C8.readInt $ C8.concat $ toChunks resp
 
 -- | Create url by command without any actions
 url :: Text -> Text -> Command a -> String
@@ -250,8 +250,8 @@ command = Command
 -- | Account and password
 account :: Account -> URLEncoded
 account (Account login pass) = mconcat [
-  "login" %= utf8 login,
-  "pass" %= utf8 pass]
+    "login" %= utf8 login,
+    "pass" %= utf8 pass]
 
 -- | Encode Text as UTF8
 utf8 :: Text -> String
@@ -260,8 +260,8 @@ utf8 = C8.unpack . T.encodeUtf8
 -- | Encode phone, allows only digits
 phone :: Text -> Either String Phone
 phone p
-  | T.all isDigit p = Right $ read . T.unpack $ p
-  | otherwise = Left $ "Phone must contain only digits: " ++ T.unpack p
+    | T.all isDigit p = Right $ read . T.unpack $ p
+    | otherwise = Left $ "Phone must contain only digits: " ++ T.unpack p
 
 -- | Separate phones with comma
 phones :: [Phone] -> Text
@@ -275,10 +275,10 @@ dateTime = T.pack . formatTime defaultTimeLocale "%H:%M %d.%m.%Y"
 -- and maximum length of 11
 sender :: Text -> Either String Sender
 sender p
-  | T.all isValid p && T.length p <= 11 = Right $ Sender p
-  | otherwise = Left $ "Sender must contain only digits, latin letters or one of '_', '-', '&', '.': " ++ T.unpack p
-  where
-    isValid c = isDigit c || (isAscii c && isLetter c) || (c `elem` "_-&.")
+    | T.all isValid p && T.length p <= 11 = Right $ Sender p
+    | otherwise = Left $ "Sender must contain only digits, latin letters or one of '_', '-', '&', '.': " ++ T.unpack p
+    where
+        isValid c = isDigit c || (isAscii c && isLetter c) || (c `elem` "_-&.")
 
 smsdirectUrl :: String
 smsdirectUrl = "https://www.smsdirect.ru"
@@ -289,4 +289,4 @@ commandUrl baseUrl cmd args = (baseUrl ++ "/" ++ cmd) %? args
 -- | Parse result as Int
 resultInt :: ByteString -> IO (Maybe Int)
 resultInt bs = return . fmap fst . C8.readInt $ bs' where
-  bs' = C8.concat . toChunks $ bs
+    bs' = C8.concat . toChunks $ bs
