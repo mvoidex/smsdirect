@@ -259,9 +259,10 @@ utf8 = C8.unpack . T.encodeUtf8
 
 -- | Encode phone, allows only digits
 phone :: Text -> Either String Phone
-phone p
-    | T.all isDigit p = Right $ read . T.unpack $ p
-    | otherwise = Left $ "Phone must contain only digits: " ++ T.unpack p
+phone = phone' . T.dropWhile (== '+') where
+    phone' p
+        | T.all isDigit p = Right $ read . T.unpack $ p
+        | otherwise = Left $ "Phone must contain only digits: " ++ T.unpack p
 
 -- | Separate phones with comma
 phones :: [Phone] -> Text
